@@ -49,7 +49,7 @@ class _LoginPageState extends State<LoginPage> {
                     children: [
                       RichText(
                         text: TextSpan(
-                            text: '앱이름',
+                            text: '게더위시',
                             style: TextStyle(
                                 letterSpacing: 1,
                                 fontSize: 25,

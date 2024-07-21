@@ -96,7 +96,7 @@ class HomeScreen extends StatelessWidget {
   final List<Map<String, String>> recentlyViewedProducts = List.generate(
     4,
         (index) => {
-      'image': 'assets/images/veg2.png',
+      'image': 'assets/images/apple.jpg',
       'description': '아삭한 사과칩',
     },
   );
@@ -104,7 +104,7 @@ class HomeScreen extends StatelessWidget {
   final List<Map<String, String>> bestProducts = List.generate(
     4,
         (index) => {
-      'image': 'assets/images/veg2.png',
+      'image': 'assets/images/tofu.png',
       'description': '신선한 두부 300g',
     },
   );
