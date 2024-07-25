@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:miniproject/mycart.dart';
 import 'market.dart';
 import 'product_detail.dart';
 import 'package:miniproject/login.dart';
@@ -115,7 +116,7 @@ class HomeScreen extends StatelessWidget {
       child: Column(
         children: [
           const SizedBox(height: 30),
-          _buildCustomAppBar(),
+          _buildCustomAppBar(context),
           const SizedBox(height: 20),
           _buildSearchBar(),
           _buildCategorySection(),
@@ -127,7 +128,7 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildCustomAppBar() {
+  Widget _buildCustomAppBar(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16.0),
       child: Row(
@@ -143,7 +144,15 @@ class HomeScreen extends StatelessWidget {
               ),
             ],
           ),
-          Icon(Icons.shopping_cart, color: Colors.black),
+          GestureDetector(
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => MyCartPage()),
+              );
+            },
+            child: Icon(Icons.shopping_cart, color: Colors.black),
+          ),
         ],
       ),
     );
