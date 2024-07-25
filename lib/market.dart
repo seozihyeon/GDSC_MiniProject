@@ -7,24 +7,27 @@ class MarketScreen extends StatelessWidget {
 
   final List<Map<String, String>> stores = [
     {
-      'name': '사과농장',
+      'name': '씨네농장',
+      'profile': 'assets/images/마켓1.png',
       'localFood': '로컬푸드',
       'organic': '유기농',
-      'products': 'assets/images/img.png',
+      'products': 'assets/images/사과.png',
       'followers': '11만'
     },
     {
-      'name': '콩나물농장',
+      'name': '허부',
+      'profile': 'assets/images/마켓2.png',
       'localFood': '로컬푸드',
       'organic': '유기농',
-      'products': 'assets/images/img.png',
+      'products': 'assets/images/veg2.png',
       'followers': '5만'
     },
     {
-      'name': '두부농장',
+      'name': '주더두부',
+      'profile': 'assets/images/마켓3.png',
       'localFood': '로컬푸드',
       'organic': '유기농',
-      'products': 'assets/images/img.png',
+      'products': 'assets/images/두부.png',
       'followers': '2만'
     },
   ];
@@ -99,7 +102,7 @@ class _StoreCardState extends State<StoreCard> {
                 children: [
                   CircleAvatar(
                     radius: 20,
-                    backgroundImage: AssetImage(widget.store['products']!),
+                    backgroundImage: AssetImage(widget.store['profile']!),
                   ),
                   const SizedBox(width: 10),
                   Text(
