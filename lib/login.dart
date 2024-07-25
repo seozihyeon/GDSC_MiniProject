@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'main.dart';
@@ -13,6 +14,17 @@ class _LoginPageState extends State<LoginPage> {
   var _UsernameController = TextEditingController();
   var _PasswordController = TextEditingController();
   dynamic userInfo = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _resetLoginStatus();
+  }
+
+  Future<void> _resetLoginStatus() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    await prefs.clear();
+  }
 
   Future<void> login() async {
     try {
@@ -31,6 +43,10 @@ class _LoginPageState extends State<LoginPage> {
         setState(() {
           userInfo = jsonDecode(response.body);
         });
+        SharedPreferences prefs = await SharedPreferences.getInstance();
+        prefs.setBool('isLoggedIn', true);
+        prefs.setString('userInfo', jsonEncode(userInfo));
+
         Navigator.pushAndRemoveUntil(
           context,
           MaterialPageRoute(builder: (context) => MainPage()),
