@@ -1,12 +1,21 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:miniproject/mycart.dart';
 import 'market.dart';
 import 'product_detail.dart';
-import 'package:miniproject/login.dart';
-import 'package:miniproject/recommend.dart';
+import 'login.dart';
+import 'recommend.dart';
+import 'dart:convert';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await _resetLoginStatus(); // 앱 시작 시 로그인 상태 초기화
   runApp(MyApp());
+}
+
+Future<void> _resetLoginStatus() async {
+  SharedPreferences prefs = await SharedPreferences.getInstance();
+  await prefs.setBool('isLoggedIn', false); // 로그인 상태 초기화
 }
 
 class MyApp extends StatelessWidget {
@@ -25,16 +34,44 @@ class MainPage extends StatefulWidget {
 
 class _MainPageState extends State<MainPage> {
   int _currentIndex = 0;
+  late List<Widget> _pages;
+  String? dongName;
+  bool isLoggedIn = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkLoginStatus();
+    _pages = [
+      HomeScreen(customBlue: const Color(0xFF76A9E6), dongName: null),
+      MarketScreen(customBlue: const Color(0xFF76A9E6)),
+      CategoryScreen(),
+      PurchaseHistoryScreen(),
+      MyInfoScreen(),
+    ];
+  }
+
+  Future<void> _checkLoginStatus() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    setState(() {
+      isLoggedIn = prefs.getBool('isLoggedIn') ?? false;
+    });
+    _loadUserData(); // 로그인 상태 확인 후에 사용자 데이터를 로드
+  }
+
+  Future<void> _loadUserData() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    String? userInfo = prefs.getString('userInfo');
+    if (userInfo != null) {
+      var user = jsonDecode(userInfo);
+      setState(() {
+        dongName = user['region_name'];
+        _pages[0] = HomeScreen(customBlue: const Color(0xFF76A9E6), dongName: dongName); // 갱신된 부분
+      });
+    }
+  }
 
   final Color customBlue = const Color(0xFF76A9E6);
-
-  final List<Widget> _pages = [
-    HomeScreen(customBlue: const Color(0xFF76A9E6)),
-    MarketScreen(customBlue: const Color(0xFF76A9E6)),
-    CategoryScreen(),
-    PurchaseHistoryScreen(),
-    LoginPage(),
-  ];
 
   @override
   Widget build(BuildContext context) {
@@ -46,9 +83,23 @@ class _MainPageState extends State<MainPage> {
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,
         onTap: (index) {
-          setState(() {
-            _currentIndex = index;
-          });
+          if (index == 4 && !isLoggedIn) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => LoginPage()),
+            ).then((_) {
+              _checkLoginStatus();
+              if (isLoggedIn) {
+                setState(() {
+                  _currentIndex = index;
+                });
+              }
+            });
+          } else {
+            setState(() {
+              _currentIndex = index;
+            });
+          }
         },
         selectedItemColor: customBlue,
         unselectedItemColor: Colors.grey.shade700,
@@ -83,8 +134,9 @@ class _MainPageState extends State<MainPage> {
 
 class HomeScreen extends StatelessWidget {
   final Color customBlue;
+  final String? dongName;
 
-  HomeScreen({required this.customBlue});
+  HomeScreen({required this.customBlue, required this.dongName});
 
   final List<Map<String, String>> recommendedProducts = List.generate(
     4,
@@ -139,7 +191,7 @@ class HomeScreen extends StatelessWidget {
               Icon(Icons.location_on, color: Colors.black),
               const SizedBox(width: 8),
               Text(
-                '서울 성동구 행당동',
+                dongName ?? '위치 정보 없음',
                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black),
               ),
             ],
@@ -307,11 +359,52 @@ class PurchaseHistoryScreen extends StatelessWidget {
   }
 }
 
-class MyInfoScreen extends StatelessWidget {
+class MyInfoScreen extends StatefulWidget {
+  @override
+  _MyInfoScreenState createState() => _MyInfoScreenState();
+}
+
+class _MyInfoScreenState extends State<MyInfoScreen> {
+  Map<String, dynamic>? userInfo;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserInfo();
+  }
+
+  Future<void> _loadUserInfo() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    String? userInfoString = prefs.getString('userInfo');
+    if (userInfoString != null) {
+      setState(() {
+        userInfo = jsonDecode(userInfoString);
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: Text('내 정보 화면'),
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('내 정보'),
+      ),
+      body: userInfo == null
+          ? Center(child: CircularProgressIndicator())
+          : Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('이름: ${userInfo!['username']}'),
+            Text('아이디: ${userInfo!['User ID']}'),
+            Text('지역: ${userInfo!['region_name']}'),
+            Text('주소: ${userInfo!['address']}'),
+            Text('전화번호: ${userInfo!['phone']}'),
+            SizedBox(height: 20),
+          ],
+        ),
+      ),
     );
   }
 }
