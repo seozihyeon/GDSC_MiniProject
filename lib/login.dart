@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:miniproject/product_detail.dart';
+import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'main.dart';
 import 'signup.dart';
-
 
 class LoginPage extends StatefulWidget {
   @override
@@ -12,8 +11,71 @@ class LoginPage extends StatefulWidget {
 
 class _LoginPageState extends State<LoginPage> {
   var _UsernameController = TextEditingController();
-  var _UseridController = TextEditingController();
+  var _PasswordController = TextEditingController();
   dynamic userInfo = '';
+
+  Future<void> login() async {
+    try {
+      final response = await http.post(
+        Uri.parse('http://10.0.2.2:5000/login'),
+        headers: <String, String>{
+          'Content-Type': 'application/json; charset=UTF-8',
+        },
+        body: jsonEncode(<String, String>{
+          'ID': _UsernameController.text,
+          'password': _PasswordController.text,
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        setState(() {
+          userInfo = jsonDecode(response.body);
+        });
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (context) => MainPage()),
+              (route) => false,
+        );
+      } else {
+        showDialog(
+          context: context,
+          builder: (BuildContext context) {
+            return AlertDialog(
+              title: Text('로그인 실패'),
+              content: Text('올바른 아이디와 비밀번호를 입력해주세요'),
+              actions: <Widget>[
+                TextButton(
+                  child: Text('확인'),
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                  },
+                ),
+              ],
+            );
+          },
+        );
+      }
+    } catch (e) {
+      print("Error: $e");
+      showDialog(
+        context: context,
+        builder: (BuildContext context) {
+          return AlertDialog(
+            title: Text('오류'),
+            content: Text('로그인 요청 중 오류가 발생했습니다.'),
+            actions: <Widget>[
+              TextButton(
+                child: Text('확인'),
+                onPressed: () {
+                  Navigator.of(context).pop();
+                },
+              ),
+            ],
+          );
+        },
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -121,7 +183,7 @@ class _LoginPageState extends State<LoginPage> {
                     ),
                     SizedBox(height: 12.0),
                     TextField(
-                      controller: _UseridController,
+                      controller: _PasswordController,
                       decoration: InputDecoration(
                         labelText: '비밀번호',
                         labelStyle: TextStyle(
@@ -134,6 +196,7 @@ class _LoginPageState extends State<LoginPage> {
                           borderSide: BorderSide(color: Color(0xFF76A9E6)),
                         ),
                       ),
+                      obscureText: true,
                     ),
                     SizedBox(height: 5.0),
                     Row(
@@ -153,22 +216,19 @@ class _LoginPageState extends State<LoginPage> {
                           },
                           child: Text(
                             '회원가입',
-                            style: TextStyle(color: Color(0xFF76A9E6), fontWeight: FontWeight.bold, decoration: TextDecoration.underline),
+                            style: TextStyle(
+                              color: Color(0xFF76A9E6),
+                              fontWeight: FontWeight.bold,
+                              decoration: TextDecoration.underline,
+                            ),
                           ),
                         ),
                       ],
                     ),
                     ElevatedButton(
-                      onPressed: () {
-                        Navigator.pushAndRemoveUntil(
-                          context,
-                          MaterialPageRoute(builder: (context) => MainPage()),
-                              (route) => false,
-                        );
-                      },
+                      onPressed: login,
                       style: ButtonStyle(
-                        backgroundColor:
-                        MaterialStateProperty.all<Color>(Colors.black54),
+                        backgroundColor: MaterialStateProperty.all<Color>(Colors.black54),
                       ),
                       child: Text('로그인', style: TextStyle(color: Colors.white)),
                     ),
