@@ -16,6 +16,7 @@ void main() async {
 Future<void> _resetLoginStatus() async {
   SharedPreferences prefs = await SharedPreferences.getInstance();
   await prefs.setBool('isLoggedIn', false); // 로그인 상태 초기화
+  await prefs.remove('userInfo');
 }
 
 class MyApp extends StatelessWidget {
@@ -41,9 +42,10 @@ class _MainPageState extends State<MainPage> {
   @override
   void initState() {
     super.initState();
+    dongName = null; // 초기화
     _checkLoginStatus();
     _pages = [
-      HomeScreen(customBlue: const Color(0xFF76A9E6), dongName: null),
+      HomeScreen(customBlue: const Color(0xFF76A9E6), dongName: dongName),
       MarketScreen(customBlue: const Color(0xFF76A9E6)),
       CategoryScreen(),
       PurchaseHistoryScreen(),
@@ -67,6 +69,10 @@ class _MainPageState extends State<MainPage> {
       setState(() {
         dongName = user['region_name'];
         _pages[0] = HomeScreen(customBlue: const Color(0xFF76A9E6), dongName: dongName); // 갱신된 부분
+      });
+    } else {
+      setState(() {
+        dongName = null; // 초기화
       });
     }
   }
