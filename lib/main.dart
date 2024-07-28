@@ -7,7 +7,7 @@ import 'login.dart';
 import 'recommend.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-import 'my_info.dart'; // Import the new MyInfoScreen
+import 'my_info.dart';
 
 Future<List<Map<String, dynamic>>> fetchRecommendedProducts() async {
   final response = await http.get(Uri.parse('http://10.0.2.2:5000/all-products')); // 서버 IP 주소 및 엔드포인트를 정확히 기입
