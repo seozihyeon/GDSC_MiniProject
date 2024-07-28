@@ -5,7 +5,19 @@ import 'market.dart';
 import 'product_detail.dart';
 import 'login.dart';
 import 'recommend.dart';
+import 'package:http/http.dart' as http;
 import 'dart:convert';
+
+Future<List<Map<String, dynamic>>> fetchRecommendedProducts() async {
+  final response = await http.get(Uri.parse('http://10.0.2.2:5000/all-products')); // 서버 IP 주소 및 엔드포인트를 정확히 기입
+
+  if (response.statusCode == 200) {
+    List<dynamic> data = jsonDecode(response.body);
+    return data.cast<Map<String, dynamic>>();
+  } else {
+    throw Exception('Failed to load recommended products');
+  }
+}
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -138,19 +150,18 @@ class _MainPageState extends State<MainPage> {
   }
 }
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   final Color customBlue;
   final String? dongName;
 
   HomeScreen({required this.customBlue, required this.dongName});
 
-  final List<Map<String, String>> recommendedProducts = List.generate(
-    4,
-        (index) => {
-      'image': 'assets/images/veg2.png',
-      'description': '[곰곰]뽑기신선하고 아삭한 깨끗한 콩나물 1kg 2kg',
-    },
-  );
+  @override
+  _HomeScreenState createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  late Future<List<Map<String, dynamic>>> bestProductsFuture;
 
   final List<Map<String, String>> recentlyViewedProducts = List.generate(
     4,
@@ -160,13 +171,19 @@ class HomeScreen extends StatelessWidget {
     },
   );
 
-  final List<Map<String, String>> bestProducts = List.generate(
+  final List<Map<String, String>> recommendProducts = List.generate(
     4,
         (index) => {
       'image': 'assets/images/tofu.png',
       'description': '신선한 두부 300g',
     },
   );
+
+  @override
+  void initState() {
+    super.initState();
+    bestProductsFuture = fetchRecommendedProducts();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -178,10 +195,100 @@ class HomeScreen extends StatelessWidget {
           const SizedBox(height: 20),
           _buildSearchBar(),
           _buildCategorySection(),
-          _buildSection('추천 상품', recommendedProducts, Colors.grey.shade700, context),
-          _buildSection('최근 본 상품', recentlyViewedProducts, Colors.grey.shade700, context),
-          _buildSection('베스트 상품', bestProducts, Colors.grey.shade700, context),
+          FutureBuilder<List<Map<String, dynamic>>>(
+            future: bestProductsFuture,
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return CircularProgressIndicator();
+              } else if (snapshot.hasError) {
+                return Text('Error: ${snapshot.error}');
+              } else {
+                return _buildSection('베스트 상품', snapshot.data ?? [], Colors.grey.shade700, context);
+              }
+            },
+          ),
+          _buildSection2('추천 상품', recommendProducts, Colors.grey.shade700, context),
+          _buildSection2('최근 본 상품', recentlyViewedProducts, Colors.grey.shade700, context),
         ],
+      ),
+    );
+  }
+
+  Widget _buildSection2(String title, List<Map<String, String>> products, Color titleColor, BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 8.0), // 카테고리와 추천 상품 사이의 간격 조정
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  title,
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: titleColor),
+                ),
+                TextButton(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => ProductRecommend()),
+                    );
+                  },
+                  child: const Text('더보기'),
+                  style: TextButton.styleFrom(
+                    primary: Color(0xFF76A9E6),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          SizedBox(
+            height: 150,
+            child: ListView.builder(
+              scrollDirection: Axis.horizontal,
+              itemCount: products.length,
+              itemBuilder: (context, index) {
+                return _buildProductCard2(products[index], context);
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildProductCard2(Map<String, String> product, BuildContext context) {
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => ProductDetailPage(),
+          ),
+        );
+      },
+      child: Container(
+        width: 120,
+        margin: const EdgeInsets.symmetric(horizontal: 8.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Image.asset(
+              product['image']!,
+              fit: BoxFit.cover,
+              height: 100,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              product['description']!,
+              style: const TextStyle(fontSize: 14),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -197,7 +304,7 @@ class HomeScreen extends StatelessWidget {
               Icon(Icons.location_on, color: Colors.black),
               const SizedBox(width: 8),
               Text(
-                dongName ?? '위치 정보 없음',
+                widget.dongName ?? '위치 정보 없음',
                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black),
               ),
             ],
@@ -249,17 +356,24 @@ class HomeScreen extends StatelessWidget {
       child: GridView.builder(
         shrinkWrap: true,
         physics: NeverScrollableScrollPhysics(),
-        itemCount: categories.length,
         gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
           crossAxisCount: 4,
-          childAspectRatio: 1,
+          mainAxisSpacing: 16,
+          crossAxisSpacing: 16,
         ),
+        itemCount: categories.length,
         itemBuilder: (context, index) {
-          final category = categories[index];
           return Column(
             children: [
-              Image.asset(category['image']!, width: 50, height: 50),
-              Text(category['label']!),
+              CircleAvatar(
+                radius: 30,
+                backgroundImage: AssetImage(categories[index]['image']!),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                categories[index]['label']!,
+                style: const TextStyle(fontSize: 14),
+              ),
             ],
           );
         },
@@ -267,20 +381,20 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildSection(String title, List<Map<String, String>> products, Color titleColor, BuildContext context) {
+  Widget _buildSection(String title, List<Map<String, dynamic>> products, Color color, BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(top: 8.0), // 카테고리와 추천 상품 사이의 간격 조정
+      padding: const EdgeInsets.all(16.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0),
+            padding: const EdgeInsets.symmetric(vertical: 16.0),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
                   title,
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: titleColor),
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: color),
                 ),
                 TextButton(
                   onPressed: () {
@@ -291,7 +405,7 @@ class HomeScreen extends StatelessWidget {
                   },
                   child: const Text('더보기'),
                   style: TextButton.styleFrom(
-                    primary: customBlue,
+                    primary: widget.customBlue,
                   ),
                 ),
               ],
@@ -312,14 +426,12 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildProductCard(Map<String, String> product, BuildContext context) {
+  Widget _buildProductCard(Map<String, dynamic> product, BuildContext context) {
     return GestureDetector(
       onTap: () {
         Navigator.push(
           context,
-          MaterialPageRoute(
-            builder: (context) => ProductDetailPage(),
-          ),
+          MaterialPageRoute(builder: (context) => ProductDetailPage()),
         );
       },
       child: Container(
@@ -329,13 +441,13 @@ class HomeScreen extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Image.asset(
-              product['image']!,
+              product['image_url'] ?? 'assets/images/veg2.png', // 기본 이미지 사용
               fit: BoxFit.cover,
               height: 100,
             ),
             const SizedBox(height: 8),
             Text(
-              product['description']!,
+              product['title'] ?? '',
               style: const TextStyle(fontSize: 14),
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
@@ -344,6 +456,23 @@ class HomeScreen extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  List<Map<String, String>> _dummyProducts() {
+    return [
+      {
+        'image': 'assets/images/fruit.png',
+        'description': '신선한 과일',
+      },
+      {
+        'image': 'assets/images/vegetable.png',
+        'description': '신선한 채소',
+      },
+      {
+        'image': 'assets/images/grain.png',
+        'description': '신선한 곡류',
+      },
+    ];
   }
 }
 
