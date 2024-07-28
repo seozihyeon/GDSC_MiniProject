@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
+import 'zzim.dart';  // ZzimPage 파일을 import
 
 class MyInfoScreen extends StatefulWidget {
   @override
@@ -157,7 +158,10 @@ class _MyInfoScreenState extends State<MyInfoScreen> {
             Icons.favorite,
             '찜한 상품',
                 () {
-              // Navigate to Wish List page
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => ZzimPage()),
+              );
             },
           ),
           _buildActionButton(
@@ -169,12 +173,11 @@ class _MyInfoScreenState extends State<MyInfoScreen> {
             },
           ),
           _buildActionButton(
-
             context,
             Icons.star,
             '리뷰 관리',
                 () {
-              // Navigate to Frequently Purchased Products page
+              // Navigate to Review Management page
             },
           ),
         ],
