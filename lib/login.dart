@@ -46,6 +46,8 @@ class _LoginPageState extends State<LoginPage> {
         SharedPreferences prefs = await SharedPreferences.getInstance();
         prefs.setBool('isLoggedIn', true);
         prefs.setString('userInfo', jsonEncode(userInfo));
+        // 쿠키를 저장
+        prefs.setString('cookie', response.headers['set-cookie']!);
 
         Navigator.pushAndRemoveUntil(
           context,

@@ -1,36 +1,91 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'favorite_market.dart';
 
-class MarketScreen extends StatelessWidget {
+class MarketScreen extends StatefulWidget {
   final Color customBlue;
 
   MarketScreen({required this.customBlue});
 
-  final List<Map<String, String>> stores = [
-    {
-      'name': '씨네농장',
-      'profile': 'assets/images/마켓1.png',
-      'localFood': '로컬푸드',
-      'organic': '유기농',
-      'products': 'assets/images/사과.png',
-      'followers': '11만'
-    },
-    {
-      'name': '허부',
-      'profile': 'assets/images/마켓2.png',
-      'localFood': '로컬푸드',
-      'organic': '유기농',
-      'products': 'assets/images/veg2.png',
-      'followers': '5만'
-    },
-    {
-      'name': '주더두부',
-      'profile': 'assets/images/마켓3.png',
-      'localFood': '로컬푸드',
-      'organic': '유기농',
-      'products': 'assets/images/두부.png',
-      'followers': '2만'
-    },
+  @override
+  _MarketScreenState createState() => _MarketScreenState();
+}
+
+class _MarketScreenState extends State<MarketScreen> {
+  List<Map<String, dynamic>> stores = [];
+  bool isLoggedIn = false;
+
+  final String defaultProfileImage = 'assets/images/마켓3.png';
+  final List<String> defaultProductImages = [
+    'assets/images/사과.png',
+    'assets/images/두부.png',
+    'assets/images/veg2.png',
+    'assets/images/두부.png',
+    'assets/images/두부.png',
+    'assets/images/veg2.png',
+    'assets/images/두부.png',
+    'assets/images/두부.png',
+    'assets/images/두부.png',
+    'assets/images/두부.png',
+    'assets/images/사과.png',
+    'assets/images/사과.png',
+    'assets/images/사과.png',
+    'assets/images/사과.png',
+    'assets/images/사과.png',
+    'assets/images/사과.png',
+    'assets/images/사과.png',
+    'assets/images/사과.png',
+    'assets/images/사과.png',
+    'assets/images/사과.png',
+    'assets/images/사과.png',
+    'assets/images/사과.png',
+    'assets/images/사과.png',
+    'assets/images/사과.png',
+    'assets/images/사과.png',
+    'assets/images/사과.png',
+    'assets/images/사과.png',
+    'assets/images/사과.png',
+    'assets/images/사과.png',
+    'assets/images/veg2.png',
+    'assets/images/veg2.png',
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    checkLoginStatus();
+    fetchMarkets();
+  }
+
+  Future<void> checkLoginStatus() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    setState(() {
+      isLoggedIn = prefs.getBool('isLoggedIn') ?? false;
+    });
+  }
+
+  Future<void> fetchMarkets() async {
+    final response = await http.get(Uri.parse('http://10.0.2.2:5000/api/markets'));
+
+    if (response.statusCode == 200) {
+      List<dynamic> data = json.decode(response.body);
+      setState(() {
+        stores = data.map((item) => {
+          'id': item['id'],
+          'name': item['name'],
+          'keywords': List<String>.from(item['keywords'] ?? []),
+          'profile': defaultProfileImage, // 프로필 이미지는 하드코딩
+          'products': defaultProductImages, // 상품 이미지는 하드코딩
+          'followers': '1.5만',  // 하드코딩
+          'is_favorite': item['is_favorite'] ?? false,
+        }).toList();
+      });
+    } else {
+      throw Exception('Failed to load markets');
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -39,7 +94,7 @@ class MarketScreen extends StatelessWidget {
       child: Scaffold(
         backgroundColor: Colors.white,  // Scaffold 배경색을 흰색으로 설정
         appBar: AppBar(
-          title: Text('스토어'),
+          title: Text('마켓'),
           backgroundColor: Colors.white,
           elevation: 0,
           foregroundColor: Colors.black,
@@ -56,7 +111,7 @@ class MarketScreen extends StatelessWidget {
         body: TabBarView(
           children: [
             _buildStoreList(),
-            Center(child: Text('관심 마켓')),
+            FavoriteMarketPage(),
           ],
         ),
       ),
@@ -67,25 +122,97 @@ class MarketScreen extends StatelessWidget {
     return ListView.builder(
       itemCount: stores.length,
       itemBuilder: (context, index) {
-        return StoreCard(store: stores[index], rank: index + 1, customBlue: customBlue);
+        return StoreCard(
+          store: stores[index],
+          rank: index + 1,
+          customBlue: widget.customBlue,
+          isLoggedIn: isLoggedIn,
+        );
       },
     );
   }
 }
 
 class StoreCard extends StatefulWidget {
-  final Map<String, String> store;
+  final Map<String, dynamic> store;
   final int rank;
   final Color customBlue;
+  final bool isLoggedIn;
 
-  StoreCard({required this.store, required this.rank, required this.customBlue});
+  StoreCard({
+    required this.store,
+    required this.rank,
+    required this.customBlue,
+    required this.isLoggedIn,
+  });
 
   @override
   _StoreCardState createState() => _StoreCardState();
 }
 
 class _StoreCardState extends State<StoreCard> {
-  bool isFavorite = false;
+  late bool isFavorite;
+  String? cookie;
+
+  @override
+  void initState() {
+    super.initState();
+    isFavorite = widget.store['is_favorite'];
+    _loadCookie();
+  }
+
+  Future<void> _loadCookie() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    cookie = prefs.getString('cookie');
+  }
+
+  Future<void> toggleFavorite() async {
+    if (!widget.isLoggedIn) {
+      _showLoginRequiredDialog();
+      return;
+    }
+
+    final url = 'http://10.0.2.2:5000/api/market-like';
+    final headers = {
+      'Content-Type': 'application/json',
+      'Cookie': cookie ?? '',
+    };
+    final body = json.encode({
+      'market_id': widget.store['id'],
+    });
+
+    final response = await (isFavorite
+        ? http.delete(Uri.parse(url), headers: headers, body: body)
+        : http.post(Uri.parse(url), headers: headers, body: body));
+
+    if (response.statusCode == 201 || response.statusCode == 200) {
+      setState(() {
+        isFavorite = !isFavorite;
+      });
+    } else {
+      throw Exception('Failed to toggle favorite');
+    }
+  }
+
+  void _showLoginRequiredDialog() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('로그인 필요'),
+          content: Text('관심 마켓으로 등록하려면 로그인이 필요합니다.'),
+          actions: [
+            TextButton(
+              child: Text('확인'),
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -114,29 +241,26 @@ class _StoreCardState extends State<StoreCard> {
                   ),
                   Spacer(),
                   GestureDetector(
-                    onTap: () {
-                      setState(() {
-                        isFavorite = !isFavorite;
-                      });
-                    },
+                    onTap: toggleFavorite,
                     child: Column(
                       children: [
                         Icon(
                           isFavorite ? Icons.star : Icons.star_border,
-                          color: isFavorite ? Colors.yellow : null,
+                          color: isFavorite ? Colors.yellow[700] : null,
                         ),
-                        Text(widget.store['followers']!),
+                        Text(widget.store['followers'].toString()),
                       ],
                     ),
                   ),
                 ],
               ),
               const SizedBox(height: 8),
-              Row(
-                children: [
-                  TextButton(
+              Wrap(
+                spacing: 8.0,
+                children: (widget.store['keywords'] as List<String>).map<Widget>((keyword) {
+                  return TextButton(
                     onPressed: () {},
-                    child: Text(widget.store['localFood']!),
+                    child: Text(keyword),
                     style: TextButton.styleFrom(
                       primary: widget.customBlue,
                       textStyle: TextStyle(
@@ -144,33 +268,20 @@ class _StoreCardState extends State<StoreCard> {
                         fontWeight: FontWeight.bold,
                       ),
                     ),
-                  ),
-                  const SizedBox(width: 8),
-                  TextButton(
-                    onPressed: () {},
-                    child: Text(widget.store['organic']!),
-                    style: TextButton.styleFrom(
-                      primary: widget.customBlue,
-                      textStyle: TextStyle(
-                        color: widget.customBlue,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                ],
+                  );
+                }).toList(),
               ),
               const SizedBox(height: 8),
               SizedBox(
                 height: 100,
                 child: ListView(
                   scrollDirection: Axis.horizontal,
-                  children: [
-                    Image.asset(widget.store['products']!, width: 80),
-                    const SizedBox(width: 8),
-                    Image.asset(widget.store['products']!, width: 80),
-                    const SizedBox(width: 8),
-                    Image.asset(widget.store['products']!, width: 80),
-                  ],
+                  children: (widget.store['products'] as List<String>).map<Widget>((product) {
+                    return Padding(
+                      padding: const EdgeInsets.only(right: 8.0),
+                      child: Image.asset(product, width: 80),
+                    );
+                  }).toList(),
                 ),
               ),
             ],
