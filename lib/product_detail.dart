@@ -1,6 +1,18 @@
 import 'package:flutter/material.dart';
-import 'package:miniproject/login.dart';
+import 'package:intl/intl.dart';
 
+void main() {
+  runApp(MyApp());
+}
+
+class MyApp extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      home: ProductDetailPage(),
+    );
+  }
+}
 
 class ProductDetailPage extends StatefulWidget {
   @override
@@ -14,6 +26,24 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
     setState(() {
       _isFavorited = !_isFavorited;
     });
+  }
+
+  void _showBottomSheet(BuildContext context, String name, String status) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (context) => Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: BottomSheetContent(
+          name: name,
+          status: status,
+          teams: [
+            {'name': '이유정', 'status': '3/7'},
+            {'name': '하지윤', 'status': '11/30'},
+          ],
+        ),
+      ),
+    );
   }
 
   @override
@@ -108,7 +138,7 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                   Divider(),
                   Text(
                     '공동구매 참여하기',
-                    style: TextStyle(fontWeight: FontWeight.bold),
+                    style: TextStyle(fontWeight: FontWeight.bold, color: Colors.blue),
                   ),
                   SizedBox(height: 8),
                   _buildGroupPurchaseItem('이유정', '3/7'),
@@ -137,9 +167,7 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
         Text('$name ($status)'),
         Spacer(),
         TextButton(
-          onPressed: () {
-            // Implement action for group purchase item
-          },
+          onPressed: () => _showBottomSheet(context, name, status),
           child: Text('공동구매 참여'),
           style: TextButton.styleFrom(
             backgroundColor: Color(0xFF00308D),
@@ -195,9 +223,7 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
       children: [
         Expanded(
           child: ElevatedButton(
-            onPressed: () {
-              // Implement action for adding to cart button
-            },
+            onPressed: () => _showBottomSheet(context, '', ''),
             child: Container(
               padding: EdgeInsets.symmetric(vertical: 17),
               child: Text('장바구니 담기', style: TextStyle(fontWeight: FontWeight.bold)),
@@ -212,9 +238,7 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
         SizedBox(width: 15),
         Expanded(
           child: ElevatedButton(
-            onPressed: () {
-              // Implement action for starting group purchase button
-            },
+            onPressed: () => _showBottomSheet(context, '', ''),
             child: Container(
               padding: EdgeInsets.symmetric(vertical: 5),
               child: Column(
@@ -235,6 +259,169 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
   }
 }
 
+class BottomSheetContent extends StatefulWidget {
+  final String name;
+  final String status;
+  final List<Map<String, String>> teams;
+
+  BottomSheetContent({
+    required this.name,
+    required this.status,
+    required this.teams,
+  });
+
+  @override
+  _BottomSheetContentState createState() => _BottomSheetContentState();
+}
+
+class _BottomSheetContentState extends State<BottomSheetContent> {
+  int _selectedQuantity = 1;
+  final double _pricePerItem = 5400.00;
+  String _selectedTeamName = '';
+  String _selectedTeamStatus = '';
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.teams.isNotEmpty) {
+      _selectedTeamName = widget.teams[0]['name']!;
+      _selectedTeamStatus = widget.teams[0]['status']!;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    String formattedPrice = NumberFormat.currency(locale: 'ko_KR', symbol: '').format(_pricePerItem * _selectedQuantity);
+
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          '공동구매 참여하기',
+          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+        ),
+        SizedBox(height: 15),
+        Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(8.0),
+            border: Border.all(
+              color: Colors.grey,
+              width: 1,
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SizedBox(height: 5,),
+              Text('   참여선택', style: TextStyle(fontSize: 16), textAlign: TextAlign.start,),
+              Divider(),
+              Padding(
+                padding: EdgeInsets.only(left: 10, right: 20),
+                child: Row(
+                  children: [
+                    Text('팀장명 ',),
+                    DropdownButton<Map<String, String>>(
+                      value: widget.teams.firstWhere(
+                            (team) => team['name'] == _selectedTeamName,
+                      ),
+                      items: widget.teams.map((team) {
+                        return DropdownMenuItem<Map<String, String>>(
+                          value: team,
+                          child: Text('  ${team['name']}', style: TextStyle(fontSize: 13),),
+                        );
+                      }).toList(),
+                      onChanged: (value) {
+                        setState(() {
+                          _selectedTeamName = value!['name']!;
+                          _selectedTeamStatus = value['status']!;
+                        });
+                      },
+                    ),
+                    Spacer(),
+                    Text('진행 인원  ($_selectedTeamStatus)'),
+                  ],
+                ),
+              )
+            ],
+          )
+        ),
+        SizedBox(height: 10),
+        Row(
+          children: [
+            Text('수량 ', style: TextStyle(fontSize: 16),),
+            SizedBox(width: 10),
+            DropdownButton<int>(
+              value: _selectedQuantity,
+              items: List.generate(10, (index) => index + 1)
+                  .map((value) => DropdownMenuItem(
+                value: value,
+                child: Text(value.toString()),
+              ))
+                  .toList(),
+              onChanged: (value) {
+                setState(() {
+                  _selectedQuantity = value!;
+                });
+              },
+            ),
+            Spacer(),
+            Text.rich(
+              TextSpan(
+                children: [
+                  TextSpan(
+                    text: '결제 예상 금액   ',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black),
+                  ),
+                  TextSpan(
+                    text: '$formattedPrice원',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF00308D)),
+                  ),
+                ],
+              ),
+            ),
+
+
+          ],
+        ),
+        SizedBox(height: 20),
+        Row(
+          children: [
+            Expanded(
+              child: ElevatedButton(
+                onPressed: () {
+                  // 장바구니 담기 버튼 클릭 시 처리
+                },
+                child: Text('장바구니 담기'),
+                style: ElevatedButton.styleFrom(
+                  primary: Colors.white,
+                  side: BorderSide(color: Color(0xFF00308D), width: 2),
+                  onPrimary: Colors.black,
+                ),
+              ),
+            ),
+            SizedBox(width: 15),
+            Expanded(
+              child: ElevatedButton(
+                onPressed: () {
+                  // 바로 구매 버튼 클릭 시 처리
+                },
+                child: Text('바로 구매'),
+                style: ElevatedButton.styleFrom(
+                  primary: Color(0xFF00308D),
+                  onPrimary: Colors.white,
+                ),
+              ),
+            ),
+          ],
+        ),
+        SizedBox(height: 10),
+      ],
+    );
+  }
+}
 
 class ReviewSection extends StatelessWidget {
   @override
