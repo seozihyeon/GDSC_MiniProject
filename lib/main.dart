@@ -262,14 +262,14 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildProductCard2(Map<String, String> product, BuildContext context) {
     return GestureDetector(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => ProductDetailPage(),
-          ),
-        );
-      },
+      // onTap: () {
+      //   Navigator.push(
+      //     context,
+      //     MaterialPageRoute(
+      //       builder: (context) => ProductDetailPage(),
+      //     ),
+      //   );
+      // },
       child: Container(
         width: 120,
         margin: const EdgeInsets.symmetric(horizontal: 8.0),
@@ -366,9 +366,10 @@ class _HomeScreenState extends State<HomeScreen> {
         itemBuilder: (context, index) {
           return Column(
             children: [
-              CircleAvatar(
-                radius: 30,
-                backgroundImage: AssetImage(categories[index]['image']!),
+              Image.asset(
+                categories[index]['image']!,
+                width: 50,
+                height: 50,
               ),
               const SizedBox(height: 8),
               Text(
@@ -430,10 +431,27 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildProductCard(Map<String, dynamic> product, BuildContext context) {
     return GestureDetector(
       onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => ProductDetailPage()),
-        );
+        final productId = product['product_id'];
+        final productTitle = product['title'] ?? 'No Title';
+        final productPrice = product['price']?.toDouble() ?? 0.0; // 가격은 double로 변환
+        if (productId != null && productId is int) {
+          print('success! ID: $productId');
+          print('success! ID: $productTitle');
+          print('success! ID: $productPrice');
+
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => ProductDetailPage(
+                productId: productId,
+                productTitle: productTitle,
+                productPrice: productPrice,
+              ),
+            ),
+          );
+        } else {
+          print('Invalid product ID: $productId');
+        }
       },
       child: Container(
         width: 120,
