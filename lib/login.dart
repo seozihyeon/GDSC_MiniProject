@@ -18,12 +18,23 @@ class _LoginPageState extends State<LoginPage> {
   @override
   void initState() {
     super.initState();
-    _resetLoginStatus();
+    _loadLastLoginInfo();
   }
 
-  Future<void> _resetLoginStatus() async {
+  Future<void> _loadLastLoginInfo() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
-    await prefs.clear();
+    String? lastUsername = prefs.getString('lastUsername');
+    String? lastPassword = prefs.getString('lastPassword');
+
+    setState(() {
+      if (lastUsername != null) {
+        _UsernameController.text = lastUsername;
+      }
+
+      if (lastPassword != null) {
+        _PasswordController.text = lastPassword;
+      }
+    });
   }
 
   Future<void> login() async {
@@ -46,6 +57,11 @@ class _LoginPageState extends State<LoginPage> {
         SharedPreferences prefs = await SharedPreferences.getInstance();
         prefs.setBool('isLoggedIn', true);
         prefs.setString('userInfo', jsonEncode(userInfo));
+        // 쿠키를 저장
+        prefs.setString('cookie', response.headers['set-cookie']!);
+        // 마지막 로그인 정보 저장
+        prefs.setString('lastUsername', _UsernameController.text);
+        prefs.setString('lastPassword', _PasswordController.text);
 
         Navigator.pushAndRemoveUntil(
           context,
