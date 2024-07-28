@@ -6,6 +6,7 @@ import 'product_detail.dart';
 import 'login.dart';
 import 'recommend.dart';
 import 'dart:convert';
+import 'my_info.dart'; // Import the new MyInfoScreen
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -49,7 +50,7 @@ class _MainPageState extends State<MainPage> {
       MarketScreen(customBlue: const Color(0xFF76A9E6)),
       CategoryScreen(),
       PurchaseHistoryScreen(),
-      MyInfoScreen(),
+      MyInfoScreen(), // Update to use the new MyInfoScreen
     ];
   }
 
@@ -361,56 +362,6 @@ class PurchaseHistoryScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Center(
       child: Text('구매내역 화면'),
-    );
-  }
-}
-
-class MyInfoScreen extends StatefulWidget {
-  @override
-  _MyInfoScreenState createState() => _MyInfoScreenState();
-}
-
-class _MyInfoScreenState extends State<MyInfoScreen> {
-  Map<String, dynamic>? userInfo;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadUserInfo();
-  }
-
-  Future<void> _loadUserInfo() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    String? userInfoString = prefs.getString('userInfo');
-    if (userInfoString != null) {
-      setState(() {
-        userInfo = jsonDecode(userInfoString);
-      });
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text('내 정보'),
-      ),
-      body: userInfo == null
-          ? Center(child: CircularProgressIndicator())
-          : Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('이름: ${userInfo!['username']}'),
-            Text('아이디: ${userInfo!['User ID']}'),
-            Text('지역: ${userInfo!['region_name']}'),
-            Text('주소: ${userInfo!['address']}'),
-            Text('전화번호: ${userInfo!['phone']}'),
-            SizedBox(height: 20),
-          ],
-        ),
-      ),
     );
   }
 }
