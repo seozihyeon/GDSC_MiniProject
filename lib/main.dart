@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:miniproject/mypuchase.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:miniproject/mycart.dart';
 import 'market.dart';
@@ -61,7 +62,7 @@ class _MainPageState extends State<MainPage> {
       HomeScreen(customBlue: const Color(0xFF76A9E6), dongName: dongName),
       MarketScreen(customBlue: const Color(0xFF76A9E6)),
       CategoryScreen(),
-      PurchaseHistoryScreen(),
+      MyPurchaseScren(),
       MyInfoScreen(), // Update to use the new MyInfoScreen
     ];
   }
