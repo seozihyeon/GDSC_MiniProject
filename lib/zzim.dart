@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'product_detail.dart';
 
 class ZzimPage extends StatefulWidget {
   @override
@@ -100,7 +101,7 @@ class _ZzimPageState extends State<ZzimPage> {
 class Product {
   final int id;
   final String name;
-  final int price; // 여기서 double 대신 int 타입으로 변경합니다.
+  final int price;
 
   Product({required this.id, required this.name, required this.price});
 
@@ -108,7 +109,7 @@ class Product {
     return Product(
       id: json['id'],
       name: json['name'],
-      price: json['price'], // int 타입으로 받습니다.
+      price: json['price'],
     );
   }
 }
@@ -120,31 +121,45 @@ class ProductItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      elevation: 2,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          Image.asset(_getImageForProductId(product.id)),
-          Padding(
-            padding: const EdgeInsets.all(5.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  product.name,
-                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
-                  overflow: TextOverflow.ellipsis,
-                ),
-                Text(
-                  '${product.price}원',
-                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.red),
-                  textAlign: TextAlign.left,
-                ),
-              ],
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => ProductDetailPage(
+              productId: product.id,
+              productTitle: product.name,
+              productPrice: product.price.toDouble(),
             ),
           ),
-        ],
+        );
+      },
+      child: Card(
+        elevation: 2,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Image.asset(_getImageForProductId(product.id)),
+            Padding(
+              padding: const EdgeInsets.all(5.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    product.name,
+                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  Text(
+                    '${product.price}원',
+                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.red),
+                    textAlign: TextAlign.left,
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
