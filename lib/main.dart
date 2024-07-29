@@ -460,7 +460,7 @@ class _HomeScreenState extends State<HomeScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Image.asset(
-              product['image_url'] ?? 'assets/images/veg2.png', // 기본 이미지 사용
+              _getImageForProductId(product['product_id']),
               fit: BoxFit.cover,
               height: 100,
             ),
@@ -475,6 +475,19 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
       ),
     );
+  }
+
+  String _getImageForProductId(int productId) {
+    switch (productId) {
+      case 8:
+        return 'assets/images/veg2.png';
+      case 1:
+        return 'assets/images/apple.jpg';
+      case 10:
+        return 'assets/images/tofu.png';
+      default:
+        return 'assets/images/veg2.png'; // 기본 이미지
+    }
   }
 
   List<Map<String, String>> _dummyProducts() {
