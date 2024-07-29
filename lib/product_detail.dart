@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-
+import 'package:shared_preferences/shared_preferences.dart';
 
 class ProductDetailPage extends StatefulWidget {
   final int productId;
@@ -15,42 +15,66 @@ class ProductDetailPage extends StatefulWidget {
     required this.productPrice,
   });
 
-
   @override
   _ProductDetailPageState createState() => _ProductDetailPageState();
 }
 
 class _ProductDetailPageState extends State<ProductDetailPage> {
-  late Future<Map<String, dynamic>> productDetails;
+  bool _isFavorited = false;
+  String? cookie;
+
   @override
   void initState() {
     super.initState();
+    _getCookie();
+    _checkIfFavorited();
   }
 
-  bool _isFavorited = false;
-
-  void _toggleFavorite() {
+  void _getCookie() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
     setState(() {
-      _isFavorited = !_isFavorited;
+      cookie = prefs.getString('cookie');
     });
   }
 
-  void _showBottomSheet(BuildContext context, String name, String status) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      builder: (context) => Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: BottomSheetContent(
-          name: name,
-          status: status,
-          teams: [
-            {'name': '이유정', 'status': '3/7'},
-            {'name': '하지윤', 'status': '11/30'},
-          ],
-        ),
-      ),
+  void _toggleFavorite() async {
+    final url = 'http://10.0.2.2:5000/api/product-like';
+    final method = _isFavorited ? 'DELETE' : 'POST';
+    final headers = {
+      'Content-Type': 'application/json',
+      'Cookie': cookie ?? '',
+    };
+    final body = jsonEncode({
+      'gonggu_product_id': widget.productId,
+      'name': widget.productTitle,
+      'price': widget.productPrice,
+    });
+
+    final response = await (method == 'POST'
+        ? http.post(Uri.parse(url), headers: headers, body: body)
+        : http.delete(Uri.parse(url), headers: headers, body: body));
+
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      setState(() {
+        _isFavorited = !_isFavorited;
+      });
+    }
+  }
+
+  void _checkIfFavorited() async {
+    final response = await http.get(
+      Uri.parse('http://10.0.2.2:5000/api/favorite-products'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Cookie': cookie ?? '',
+      },
     );
+    if (response.statusCode == 200) {
+      final List<dynamic> favoriteProducts = jsonDecode(response.body);
+      setState(() {
+        _isFavorited = favoriteProducts.any((product) => product['id'] == widget.productId);
+      });
+    }
   }
 
   @override
@@ -279,6 +303,24 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
       ],
     );
   }
+
+  void _showBottomSheet(BuildContext context, String name, String status) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (context) => Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: BottomSheetContent(
+          name: name,
+          status: status,
+          teams: [
+            {'name': '이유정', 'status': '3/7'},
+            {'name': '하지윤', 'status': '11/30'},
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 class BottomSheetContent extends StatefulWidget {
@@ -326,49 +368,49 @@ class _BottomSheetContentState extends State<BottomSheetContent> {
         ),
         SizedBox(height: 15),
         Container(
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(8.0),
-            border: Border.all(
-              color: Colors.grey,
-              width: 1,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(8.0),
+              border: Border.all(
+                color: Colors.grey,
+                width: 1,
+              ),
             ),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              SizedBox(height: 5,),
-              Text('   참여선택', style: TextStyle(fontSize: 16), textAlign: TextAlign.start,),
-              Divider(),
-              Padding(
-                padding: EdgeInsets.only(left: 10, right: 20),
-                child: Row(
-                  children: [
-                    Text('팀장명 ',),
-                    DropdownButton<Map<String, String>>(
-                      value: widget.teams.firstWhere(
-                            (team) => team['name'] == _selectedTeamName,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SizedBox(height: 5,),
+                Text('   참여선택', style: TextStyle(fontSize: 16), textAlign: TextAlign.start,),
+                Divider(),
+                Padding(
+                  padding: EdgeInsets.only(left: 10, right: 20),
+                  child: Row(
+                    children: [
+                      Text('팀장명 ',),
+                      DropdownButton<Map<String, String>>(
+                        value: widget.teams.firstWhere(
+                              (team) => team['name'] == _selectedTeamName,
+                        ),
+                        items: widget.teams.map((team) {
+                          return DropdownMenuItem<Map<String, String>>(
+                            value: team,
+                            child: Text('  ${team['name']}', style: TextStyle(fontSize: 13),),
+                          );
+                        }).toList(),
+                        onChanged: (value) {
+                          setState(() {
+                            _selectedTeamName = value!['name']!;
+                            _selectedTeamStatus = value['status']!;
+                          });
+                        },
                       ),
-                      items: widget.teams.map((team) {
-                        return DropdownMenuItem<Map<String, String>>(
-                          value: team,
-                          child: Text('  ${team['name']}', style: TextStyle(fontSize: 13),),
-                        );
-                      }).toList(),
-                      onChanged: (value) {
-                        setState(() {
-                          _selectedTeamName = value!['name']!;
-                          _selectedTeamStatus = value['status']!;
-                        });
-                      },
-                    ),
-                    Spacer(),
-                    Text('진행 인원  ($_selectedTeamStatus)'),
-                  ],
-                ),
-              )
-            ],
-          )
+                      Spacer(),
+                      Text('진행 인원  ($_selectedTeamStatus)'),
+                    ],
+                  ),
+                )
+              ],
+            )
         ),
         SizedBox(height: 10),
         Row(
@@ -404,8 +446,6 @@ class _BottomSheetContentState extends State<BottomSheetContent> {
                 ],
               ),
             ),
-
-
           ],
         ),
         SizedBox(height: 20),
@@ -501,7 +541,6 @@ class ReviewItem extends StatelessWidget {
     );
   }
 }
-
 
 class QuestionSection extends StatelessWidget {
   @override
