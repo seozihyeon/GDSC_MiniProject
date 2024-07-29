@@ -12,12 +12,6 @@ class _MyPurchaseScrenState extends State<MyPurchaseScren> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back),
-          onPressed: () {
-            Navigator.of(context).pop();
-          },
-        ),
         title: Text('나의 구매내역'),
         actions: [
           IconButton(

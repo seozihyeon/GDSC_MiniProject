@@ -20,12 +20,15 @@ class ProductDetailPage extends StatefulWidget {
 }
 
 class _ProductDetailPageState extends State<ProductDetailPage> {
+  late Future<Map<String, dynamic>> productDetails;
+  bool isLoggedIn = false;
   bool _isFavorited = false;
   String? cookie;
 
   @override
   void initState() {
     super.initState();
+    checkLoginStatus();
     _getCookie();
     _checkIfFavorited();
   }
@@ -36,6 +39,88 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
       cookie = prefs.getString('cookie');
     });
   }
+
+  Future<void> checkLoginStatus() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    setState(() {
+      isLoggedIn = prefs.getBool('isLoggedIn') ?? false;
+      cookie = prefs.getString('cookie');
+    });
+  }
+
+  Future<void> _purchaseProduct(int quantity) async {
+    if (!isLoggedIn) {
+      _showDialog('로그인 후 이용해 주세요.');
+      return;
+    }
+
+    try {
+      final response = await http.post(
+        Uri.parse('http://10.0.2.2:5000/purchase'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Cookie': cookie ?? '',
+        },
+        body: jsonEncode({
+          'product_id': widget.productId,
+          'quantity': quantity,
+        }),
+      );
+
+      print('상품 ${widget.productId} 구매 성공');
+
+      if (response.statusCode == 201) {
+        _showDialog('구매가 성공적으로 완료되었습니다.');
+      } else {
+        _showDialog('구매를 실패하였습니다. 다시 시도해 주세요.');
+      }
+    } catch (e) {
+      print('구매실패 에러: $e');
+      _showDialog('예기치 못한 오류가 발생하였습니다.');
+    }
+  }
+
+  void _showDialog(String message) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('알림'),
+          content: Text(message),
+          actions: <Widget>[
+            TextButton(
+              child: Text('확인'),
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showBottomSheet(BuildContext context, String name, String status) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (context) => Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: BottomSheetContent(
+          name: name,
+          status: status,
+          teams: [
+            {'name': '이유정', 'status': '3/7'},
+            {'name': '하지윤', 'status': '11/30'},
+          ],
+          onPurchase: (quantity) async {
+            await _purchaseProduct(quantity); // 수정된 부분
+          },
+        ),
+      ),
+    );
+  }
+
 
   void _toggleFavorite() async {
     final url = 'http://10.0.2.2:5000/api/product-like';
@@ -303,35 +388,19 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
       ],
     );
   }
-
-  void _showBottomSheet(BuildContext context, String name, String status) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      builder: (context) => Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: BottomSheetContent(
-          name: name,
-          status: status,
-          teams: [
-            {'name': '이유정', 'status': '3/7'},
-            {'name': '하지윤', 'status': '11/30'},
-          ],
-        ),
-      ),
-    );
-  }
 }
 
 class BottomSheetContent extends StatefulWidget {
   final String name;
   final String status;
   final List<Map<String, String>> teams;
+  final Future<void> Function(int quantity) onPurchase;
 
   BottomSheetContent({
     required this.name,
     required this.status,
     required this.teams,
+    required this.onPurchase,
   });
 
   @override
@@ -455,6 +524,9 @@ class _BottomSheetContentState extends State<BottomSheetContent> {
               child: ElevatedButton(
                 onPressed: () {
                   // 장바구니 담기 버튼 클릭 시 처리
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('장바구니에 담겼습니다.')),
+                  );
                 },
                 child: Text('장바구니 담기'),
                 style: ElevatedButton.styleFrom(
@@ -467,8 +539,8 @@ class _BottomSheetContentState extends State<BottomSheetContent> {
             SizedBox(width: 15),
             Expanded(
               child: ElevatedButton(
-                onPressed: () {
-                  // 바로 구매 버튼 클릭 시 처리
+                onPressed: () async {
+                  await widget.onPurchase(_selectedQuantity);
                 },
                 child: Text('바로 구매'),
                 style: ElevatedButton.styleFrom(
