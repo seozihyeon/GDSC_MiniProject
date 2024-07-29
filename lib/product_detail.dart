@@ -79,7 +79,7 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Image.asset('assets/images/veg2.png'),
+            Image.asset(_getImageForProductId(widget.productId)),
             Padding(
               padding: const EdgeInsets.all(16.0),
               child: Column(
@@ -164,6 +164,19 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
         ),
       ),
     );
+  }
+
+  String _getImageForProductId(int productId) {
+    switch (productId) {
+      case 8:
+        return 'assets/images/veg2.png';
+      case 1:
+        return 'assets/images/apple.jpg';
+      case 10:
+        return 'assets/images/tofu.png';
+      default:
+        return 'assets/images/veg2.png'; // 기본 이미지
+    }
   }
 
   Widget _buildGroupPurchaseItem(String name, String status) {
