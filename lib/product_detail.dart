@@ -4,8 +4,6 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 
-
-
 class ProductDetailPage extends StatefulWidget {
   final int productId;
   final String productTitle;
@@ -17,7 +15,6 @@ class ProductDetailPage extends StatefulWidget {
     required this.productPrice,
   });
 
-
   @override
   _ProductDetailPageState createState() => _ProductDetailPageState();
 }
@@ -25,19 +22,21 @@ class ProductDetailPage extends StatefulWidget {
 class _ProductDetailPageState extends State<ProductDetailPage> {
   late Future<Map<String, dynamic>> productDetails;
   bool isLoggedIn = false;
+  bool _isFavorited = false;
   String? cookie;
 
   @override
   void initState() {
     super.initState();
     checkLoginStatus();
+    _getCookie();
+    _checkIfFavorited();
   }
 
-  bool _isFavorited = false;
-
-  void _toggleFavorite() {
+  void _getCookie() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
     setState(() {
-      _isFavorited = !_isFavorited;
+      cookie = prefs.getString('cookie');
     });
   }
 
@@ -120,6 +119,47 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
         ),
       ),
     );
+  }
+
+
+  void _toggleFavorite() async {
+    final url = 'http://10.0.2.2:5000/api/product-like';
+    final method = _isFavorited ? 'DELETE' : 'POST';
+    final headers = {
+      'Content-Type': 'application/json',
+      'Cookie': cookie ?? '',
+    };
+    final body = jsonEncode({
+      'gonggu_product_id': widget.productId,
+      'name': widget.productTitle,
+      'price': widget.productPrice,
+    });
+
+    final response = await (method == 'POST'
+        ? http.post(Uri.parse(url), headers: headers, body: body)
+        : http.delete(Uri.parse(url), headers: headers, body: body));
+
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      setState(() {
+        _isFavorited = !_isFavorited;
+      });
+    }
+  }
+
+  void _checkIfFavorited() async {
+    final response = await http.get(
+      Uri.parse('http://10.0.2.2:5000/api/favorite-products'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Cookie': cookie ?? '',
+      },
+    );
+    if (response.statusCode == 200) {
+      final List<dynamic> favoriteProducts = jsonDecode(response.body);
+      setState(() {
+        _isFavorited = favoriteProducts.any((product) => product['id'] == widget.productId);
+      });
+    }
   }
 
   @override
@@ -573,7 +613,6 @@ class ReviewItem extends StatelessWidget {
     );
   }
 }
-
 
 class QuestionSection extends StatelessWidget {
   @override
