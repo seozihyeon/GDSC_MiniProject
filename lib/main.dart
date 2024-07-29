@@ -366,9 +366,10 @@ class _HomeScreenState extends State<HomeScreen> {
         itemBuilder: (context, index) {
           return Column(
             children: [
-              CircleAvatar(
-                radius: 30,
-                backgroundImage: AssetImage(categories[index]['image']!),
+              Image.asset(
+                categories[index]['image']!,
+                width: 50,
+                height: 50,
               ),
               const SizedBox(height: 8),
               Text(
