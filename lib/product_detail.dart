@@ -1,25 +1,32 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 
-void main() {
-  runApp(MyApp());
-}
-
-class MyApp extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      home: ProductDetailPage(),
-    );
-  }
-}
 
 class ProductDetailPage extends StatefulWidget {
+  final int productId;
+  final String productTitle;
+  final double productPrice;
+
+  ProductDetailPage({
+    required this.productId,
+    required this.productTitle,
+    required this.productPrice,
+  });
+
+
   @override
   _ProductDetailPageState createState() => _ProductDetailPageState();
 }
 
 class _ProductDetailPageState extends State<ProductDetailPage> {
+  late Future<Map<String, dynamic>> productDetails;
+  @override
+  void initState() {
+    super.initState();
+  }
+
   bool _isFavorited = false;
 
   void _toggleFavorite() {
@@ -48,6 +55,8 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
 
   @override
   Widget build(BuildContext context) {
+    final priceFormat = NumberFormat('#,###');
+
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
@@ -70,14 +79,14 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Image.asset('assets/images/veg2.png'),
+            Image.asset(_getImageForProductId(widget.productId)),
             Padding(
               padding: const EdgeInsets.all(16.0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    '[곰팡몰]신선하고 아삭한 깨끗한 콩나물 1kg 2kg',
+                    widget.productTitle,
                     style: TextStyle(
                       fontWeight: FontWeight.bold,
                       fontSize: 16,
@@ -85,7 +94,7 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                   ),
                   SizedBox(height: 8),
                   Text(
-                    '5,400원~',
+                    '${priceFormat.format(widget.productPrice)}원~',
                     style: TextStyle(
                       fontWeight: FontWeight.bold,
                       fontSize: 16,
@@ -155,6 +164,19 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
         ),
       ),
     );
+  }
+
+  String _getImageForProductId(int productId) {
+    switch (productId) {
+      case 8:
+        return 'assets/images/veg2.png';
+      case 1:
+        return 'assets/images/apple.jpg';
+      case 10:
+        return 'assets/images/tofu.png';
+      default:
+        return 'assets/images/veg2.png'; // 기본 이미지
+    }
   }
 
   Widget _buildGroupPurchaseItem(String name, String status) {
