@@ -86,7 +86,7 @@ class _MainPageState extends State<MainPage> {
       });
     } else {
       setState(() {
-        dongName = null; // 초기화
+        dongName = null;
       });
     }
   }
