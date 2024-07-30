@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
-import 'recommend_service.dart';
+import 'mycart.dart';
+import 'recommend.dart';
 import 'product_detail.dart';
+import 'api_service.dart';
 
 class HomeScreen extends StatefulWidget {
   final Color customBlue;
@@ -14,12 +16,34 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  late Future<List<Map<String, dynamic>>> bestProductsFuture;
+  late Future<List<Map<String, dynamic>>> recommendedProductsFuture;
+  late Future<List<Map<String, dynamic>>> allProductsFuture;
+
+  final List<Map<String, String>> recentlyViewedProducts = List.generate(
+    4,
+        (index) => {
+      'image': 'assets/images/apple.jpg',
+      'description': '아삭한 사과칩',
+    },
+  );
+
+  final ApiService apiService = ApiService();
 
   @override
   void initState() {
     super.initState();
-    bestProductsFuture = fetchRecommendedProducts(widget.userId);
+    recommendedProductsFuture = apiService.fetchRecommendedProducts(widget.userId);
+    allProductsFuture = apiService.fetchAllProducts();
+  }
+
+  @override
+  void didUpdateWidget(HomeScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.userId != widget.userId) {
+      setState(() {
+        recommendedProductsFuture = apiService.fetchRecommendedProducts(widget.userId);
+      });
+    }
   }
 
   @override
@@ -32,8 +56,9 @@ class _HomeScreenState extends State<HomeScreen> {
           const SizedBox(height: 20),
           _buildSearchBar(),
           _buildCategorySection(),
+
           FutureBuilder<List<Map<String, dynamic>>>(
-            future: bestProductsFuture,
+            future: allProductsFuture,
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
                 return CircularProgressIndicator();
@@ -44,11 +69,129 @@ class _HomeScreenState extends State<HomeScreen> {
               }
             },
           ),
-          // _buildSection2('추천 상품', recommendProducts, Colors.grey.shade700, context),
-          // _buildSection2('최근 본 상품', recentlyViewedProducts, Colors.grey.shade700, context),
+          FutureBuilder<List<Map<String, dynamic>>>(
+            future: recommendedProductsFuture,
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return CircularProgressIndicator();
+              } else if (snapshot.hasError) {
+                return Text('Error: ${snapshot.error}');
+              } else {
+                return _buildSection('추천 상품', snapshot.data ?? [], Colors.grey.shade700, context);
+              }
+            },
+          ),
+          _buildSection2('최근 본 상품', recentlyViewedProducts, Colors.grey.shade700, context),
         ],
       ),
     );
+  }
+
+  Widget _buildSection(String title, List<Map<String, dynamic>> products, Color color, BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 16.0),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  title,
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: color),
+                ),
+                TextButton(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => ProductRecommend(
+                          products: products,
+                        ),
+                      ),
+                    );
+                  },
+                  child: const Text('더보기'),
+                  style: TextButton.styleFrom(
+                    primary: widget.customBlue,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          SizedBox(
+            height: 150,
+            child: ListView.builder(
+              scrollDirection: Axis.horizontal,
+              itemCount: products.length,
+              itemBuilder: (context, index) {
+                return _buildProductCard(products[index], context);
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildProductCard(Map<String, dynamic> product, BuildContext context) {
+    return GestureDetector(
+      onTap: () {
+        final productId = product['product_id'];
+        final productTitle = product['title'] ?? 'No Title';
+        final productPrice = product['price'] ?? 0;
+        if (productId != null && productId is int) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => ProductDetailPage(
+                productId: productId,
+                productTitle: productTitle,
+                productPrice: productPrice.toDouble(),
+              ),
+            ),
+          );
+        } else {
+          print('Invalid product ID: $productId');
+        }
+      },
+      child: Container(
+        width: 120,
+        margin: const EdgeInsets.symmetric(horizontal: 8.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Image.asset(
+              _getImageForProductId(product['product_id']),
+              fit: BoxFit.cover,
+              height: 100,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              product['title'] ?? '',
+              style: const TextStyle(fontSize: 14),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _getImageForProductId(int productId) {
+    switch (productId) {
+      case 8:
+        return 'assets/images/veg2.png';
+      case 1:
+        return 'assets/images/apple.jpg';
+      case 10:
+        return 'assets/images/tofu.png';
+      default:
+        return 'assets/images/veg2.png'; // 기본 이미지
+    }
   }
 
   Widget _buildCustomAppBar(BuildContext context) {
@@ -71,7 +214,7 @@ class _HomeScreenState extends State<HomeScreen> {
             onTap: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (context) => MyCartPage()),
+                MaterialPageRoute(builder: (context) => MyCartPage()), // You'll need to implement this
               );
             },
             child: Icon(Icons.shopping_cart, color: Colors.black),
@@ -140,31 +283,35 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildSection(String title, List<Map<String, dynamic>> products, Color color, BuildContext context) {
+  Widget _buildSection2(String title, List<Map<String, String>> products, Color titleColor, BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.all(16.0),
+      padding: const EdgeInsets.only(top: 15.0), // 카테고리와 추천 상품 사이의 간격 조정
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Padding(
-            padding: const EdgeInsets.symmetric(vertical: 16.0),
+            padding: const EdgeInsets.symmetric(horizontal: 16.0),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
                   title,
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: color),
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: titleColor),
                 ),
                 TextButton(
                   onPressed: () {
                     Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (context) => ProductRecommend()),
+                      MaterialPageRoute(
+                        builder: (context) => ProductRecommend(
+                          products: products,
+                        ),
+                      ),
                     );
                   },
                   child: const Text('더보기'),
                   style: TextButton.styleFrom(
-                    primary: widget.customBlue,
+                    primary: Color(0xFF76A9E6),
                   ),
                 ),
               ],
@@ -176,7 +323,7 @@ class _HomeScreenState extends State<HomeScreen> {
               scrollDirection: Axis.horizontal,
               itemCount: products.length,
               itemBuilder: (context, index) {
-                return _buildProductCard(products[index], context);
+                return _buildProductCard2(products[index], context);
               },
             ),
           ),
@@ -185,31 +332,16 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildProductCard(Map<String, dynamic> product, BuildContext context) {
+  Widget _buildProductCard2(Map<String, String> product, BuildContext context) {
     return GestureDetector(
-      onTap: () {
-        final productId = product['product_id'];
-        final productTitle = product['title'] ?? 'No Title';
-        final productPrice = product['price']?.toDouble() ?? 0.0; // 가격은 double로 변환
-        if (productId != null && productId is int) {
-          print('success! ID: $productId');
-          print('success! ID: $productTitle');
-          print('success! ID: $productPrice');
-
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => ProductDetailPage(
-                productId: productId,
-                productTitle: productTitle,
-                productPrice: productPrice,
-              ),
-            ),
-          );
-        } else {
-          print('Invalid product ID: $productId');
-        }
-      },
+      // onTap: () {
+      //   Navigator.push(
+      //     context,
+      //     MaterialPageRoute(
+      //       builder: (context) => ProductDetailPage(), // You'll need to implement this
+      //     ),
+      //   );
+      // },
       child: Container(
         width: 120,
         margin: const EdgeInsets.symmetric(horizontal: 8.0),
@@ -217,13 +349,13 @@ class _HomeScreenState extends State<HomeScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Image.asset(
-              _getImageForProductId(product['product_id']),
+              product['image']!,
               fit: BoxFit.cover,
               height: 100,
             ),
             const SizedBox(height: 8),
             Text(
-              product['title'] ?? '',
+              product['description']!,
               style: const TextStyle(fontSize: 14),
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
@@ -232,18 +364,5 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
       ),
     );
-  }
-
-  String _getImageForProductId(int productId) {
-    switch (productId) {
-      case 8:
-        return 'assets/images/veg2.png';
-      case 1:
-        return 'assets/images/apple.jpg';
-      case 10:
-        return 'assets/images/tofu.png';
-      default:
-        return 'assets/images/veg2.png'; // 기본 이미지
-    }
   }
 }

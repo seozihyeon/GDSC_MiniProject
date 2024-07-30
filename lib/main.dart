@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert'; // 추가된 부분
 import 'home_screen.dart';
 import 'mycart.dart';
 import 'login.dart';
 import 'market.dart';
-import 'category_screen.dart';
-import 'mypurchase.dart';
+import 'mypuchase.dart';
 import 'my_info.dart';
 
 void main() async {
@@ -49,7 +49,7 @@ class _MainPageState extends State<MainPage> {
     _pages = [
       HomeScreen(customBlue: const Color(0xFF76A9E6), dongName: dongName, userId: userId),  // 사용자 ID 전달
       MarketScreen(customBlue: const Color(0xFF76A9E6)),
-      CategoryScreen(),
+      Center(child: Text('카테고리 화면')), // 카테고리 화면 텍스트
       MyPurchaseScren(),
       MyInfoScreen(), // Update to use the new MyInfoScreen
     ];
@@ -60,17 +60,17 @@ class _MainPageState extends State<MainPage> {
     setState(() {
       isLoggedIn = prefs.getBool('isLoggedIn') ?? false;
     });
-    _loadUserData(); // 로그인 상태 확인 후에 사용자 데이터를 로드
+    await _loadUserData(); // 로그인 상태 확인 후에 사용자 데이터를 로드
   }
 
   Future<void> _loadUserData() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     String? userInfo = prefs.getString('userInfo');
     if (userInfo != null) {
-      var user = jsonDecode(userInfo);
+      var user = jsonDecode(userInfo); // jsonDecode 사용
       setState(() {
         dongName = user['region_name'];
-        userId = user['user_id'];  // 사용자 ID 저장
+        userId = user['ID'];  // 사용자 ID 저장
         _pages[0] = HomeScreen(customBlue: const Color(0xFF76A9E6), dongName: dongName, userId: userId); // 갱신된 부분
       });
     } else {
@@ -91,7 +91,13 @@ class _MainPageState extends State<MainPage> {
       ),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,
-        onTap: (index) {
+        onTap: (index) async {
+          if (index == 0) { // 홈 화면이 선택될 때마다 추천 시스템 호출
+            await _loadUserData();
+            setState(() {
+              _pages[0] = HomeScreen(customBlue: const Color(0xFF76A9E6), dongName: dongName, userId: userId);
+            });
+          }
           if (index == 4 && !isLoggedIn) {
             Navigator.push(
               context,
