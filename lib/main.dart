@@ -1,25 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:miniproject/mypuchase.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:miniproject/mycart.dart';
-import 'market.dart';
-import 'product_detail.dart';
+import 'dart:convert'; // 추가된 부분
+import 'home_screen.dart';
+import 'mycart.dart';
 import 'login.dart';
-import 'recommend.dart';
-import 'package:http/http.dart' as http;
-import 'dart:convert';
+import 'market.dart';
+import 'mypuchase.dart';
 import 'my_info.dart';
-
-Future<List<Map<String, dynamic>>> fetchRecommendedProducts() async {
-  final response = await http.get(Uri.parse('http://10.0.2.2:5000/all-products')); // 서버 IP 주소 및 엔드포인트를 정확히 기입
-
-  if (response.statusCode == 200) {
-    List<dynamic> data = jsonDecode(response.body);
-    return data.cast<Map<String, dynamic>>();
-  } else {
-    throw Exception('Failed to load recommended products');
-  }
-}
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -52,6 +39,7 @@ class _MainPageState extends State<MainPage> {
   late List<Widget> _pages;
   String? dongName;
   bool isLoggedIn = false;
+  int userId = 0;  // 사용자 ID를 저장할 변수
 
   @override
   void initState() {
@@ -59,9 +47,9 @@ class _MainPageState extends State<MainPage> {
     dongName = null; // 초기화
     _checkLoginStatus();
     _pages = [
-      HomeScreen(customBlue: const Color(0xFF76A9E6), dongName: dongName),
+      HomeScreen(customBlue: const Color(0xFF76A9E6), dongName: dongName, userId: userId),  // 사용자 ID 전달
       MarketScreen(customBlue: const Color(0xFF76A9E6)),
-      CategoryScreen(),
+      Center(child: Text('카테고리 화면')), // 카테고리 화면 텍스트
       MyPurchaseScreen(),
       MyInfoScreen(), // Update to use the new MyInfoScreen
     ];
@@ -72,17 +60,18 @@ class _MainPageState extends State<MainPage> {
     setState(() {
       isLoggedIn = prefs.getBool('isLoggedIn') ?? false;
     });
-    _loadUserData(); // 로그인 상태 확인 후에 사용자 데이터를 로드
+    await _loadUserData(); // 로그인 상태 확인 후에 사용자 데이터를 로드
   }
 
   Future<void> _loadUserData() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     String? userInfo = prefs.getString('userInfo');
     if (userInfo != null) {
-      var user = jsonDecode(userInfo);
+      var user = jsonDecode(userInfo); // jsonDecode 사용
       setState(() {
         dongName = user['region_name'];
-        _pages[0] = HomeScreen(customBlue: const Color(0xFF76A9E6), dongName: dongName); // 갱신된 부분
+        userId = user['ID'];  // 사용자 ID 저장
+        _pages[0] = HomeScreen(customBlue: const Color(0xFF76A9E6), dongName: dongName, userId: userId); // 갱신된 부분
       });
     } else {
       setState(() {
@@ -102,7 +91,13 @@ class _MainPageState extends State<MainPage> {
       ),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,
-        onTap: (index) {
+        onTap: (index) async {
+          if (index == 0) { // 홈 화면이 선택될 때마다 추천 시스템 호출
+            await _loadUserData();
+            setState(() {
+              _pages[0] = HomeScreen(customBlue: const Color(0xFF76A9E6), dongName: dongName, userId: userId);
+            });
+          }
           if (index == 4 && !isLoggedIn) {
             Navigator.push(
               context,
@@ -148,381 +143,6 @@ class _MainPageState extends State<MainPage> {
           ),
         ],
       ),
-    );
-  }
-}
-
-class HomeScreen extends StatefulWidget {
-  final Color customBlue;
-  final String? dongName;
-
-  HomeScreen({required this.customBlue, required this.dongName});
-
-  @override
-  _HomeScreenState createState() => _HomeScreenState();
-}
-
-class _HomeScreenState extends State<HomeScreen> {
-  late Future<List<Map<String, dynamic>>> bestProductsFuture;
-
-  final List<Map<String, String>> recentlyViewedProducts = List.generate(
-    4,
-        (index) => {
-      'image': 'assets/images/apple.jpg',
-      'description': '아삭한 사과칩',
-    },
-  );
-
-  final List<Map<String, String>> recommendProducts = List.generate(
-    4,
-        (index) => {
-      'image': 'assets/images/tofu.png',
-      'description': '신선한 두부 300g',
-    },
-  );
-
-  @override
-  void initState() {
-    super.initState();
-    bestProductsFuture = fetchRecommendedProducts();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      child: Column(
-        children: [
-          const SizedBox(height: 30),
-          _buildCustomAppBar(context),
-          const SizedBox(height: 20),
-          _buildSearchBar(),
-          _buildCategorySection(),
-          FutureBuilder<List<Map<String, dynamic>>>(
-            future: bestProductsFuture,
-            builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return CircularProgressIndicator();
-              } else if (snapshot.hasError) {
-                return Text('Error: ${snapshot.error}');
-              } else {
-                return _buildSection('베스트 상품', snapshot.data ?? [], Colors.grey.shade700, context);
-              }
-            },
-          ),
-          _buildSection2('추천 상품', recommendProducts, Colors.grey.shade700, context),
-          _buildSection2('최근 본 상품', recentlyViewedProducts, Colors.grey.shade700, context),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSection2(String title, List<Map<String, String>> products, Color titleColor, BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(top: 8.0), // 카테고리와 추천 상품 사이의 간격 조정
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  title,
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: titleColor),
-                ),
-                TextButton(
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => ProductRecommend()),
-                    );
-                  },
-                  child: const Text('더보기'),
-                  style: TextButton.styleFrom(
-                    primary: Color(0xFF76A9E6),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          SizedBox(
-            height: 150,
-            child: ListView.builder(
-              scrollDirection: Axis.horizontal,
-              itemCount: products.length,
-              itemBuilder: (context, index) {
-                return _buildProductCard2(products[index], context);
-              },
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildProductCard2(Map<String, String> product, BuildContext context) {
-    return GestureDetector(
-      // onTap: () {
-      //   Navigator.push(
-      //     context,
-      //     MaterialPageRoute(
-      //       builder: (context) => ProductDetailPage(),
-      //     ),
-      //   );
-      // },
-      child: Container(
-        width: 120,
-        margin: const EdgeInsets.symmetric(horizontal: 8.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Image.asset(
-              product['image']!,
-              fit: BoxFit.cover,
-              height: 100,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              product['description']!,
-              style: const TextStyle(fontSize: 14),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildCustomAppBar(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16.0),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Row(
-            children: [
-              Icon(Icons.location_on, color: Colors.black),
-              const SizedBox(width: 8),
-              Text(
-                widget.dongName ?? '위치 정보 없음',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black),
-              ),
-            ],
-          ),
-          GestureDetector(
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => MyCartPage()),
-              );
-            },
-            child: Icon(Icons.shopping_cart, color: Colors.black),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSearchBar() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16.0),
-      child: TextField(
-        decoration: InputDecoration(
-          hintText: '검색',
-          prefixIcon: Icon(Icons.search, color: Colors.grey.shade700),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(30.0),
-          ),
-          contentPadding: const EdgeInsets.symmetric(vertical: 10.0),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildCategorySection() {
-    final List<Map<String, String>> categories = [
-      {'image': 'assets/images/fruit.png', 'label': '과일'},
-      {'image': 'assets/images/vegetable.png', 'label': '채소'},
-      {'image': 'assets/images/grain.png', 'label': '곡류'},
-      {'image': 'assets/images/seafood.png', 'label': '해산물'},
-      {'image': 'assets/images/meat.png', 'label': '육류'},
-      {'image': 'assets/images/processed.png', 'label': '가공식품'},
-      {'image': 'assets/images/dairy.png', 'label': '유제품 및 계란'},
-      {'image': 'assets/images/etc.png', 'label': '기타'},
-    ];
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 0),
-      child: GridView.builder(
-        shrinkWrap: true,
-        physics: NeverScrollableScrollPhysics(),
-        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 4,
-          mainAxisSpacing: 16,
-          crossAxisSpacing: 16,
-        ),
-        itemCount: categories.length,
-        itemBuilder: (context, index) {
-          return Column(
-            children: [
-              Image.asset(
-                categories[index]['image']!,
-                width: 50,
-                height: 50,
-              ),
-              const SizedBox(height: 8),
-              Text(
-                categories[index]['label']!,
-                style: const TextStyle(fontSize: 14),
-              ),
-            ],
-          );
-        },
-      ),
-    );
-  }
-
-  Widget _buildSection(String title, List<Map<String, dynamic>> products, Color color, BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(16.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 16.0),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  title,
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: color),
-                ),
-                TextButton(
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => ProductRecommend()),
-                    );
-                  },
-                  child: const Text('더보기'),
-                  style: TextButton.styleFrom(
-                    primary: widget.customBlue,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          SizedBox(
-            height: 150,
-            child: ListView.builder(
-              scrollDirection: Axis.horizontal,
-              itemCount: products.length,
-              itemBuilder: (context, index) {
-                return _buildProductCard(products[index], context);
-              },
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildProductCard(Map<String, dynamic> product, BuildContext context) {
-    return GestureDetector(
-      onTap: () {
-        final productId = product['product_id'];
-        final productTitle = product['title'] ?? 'No Title';
-        final productPrice = product['price']?.toDouble() ?? 0.0; // 가격은 double로 변환
-        if (productId != null && productId is int) {
-          print('success! ID: $productId');
-          print('success! ID: $productTitle');
-          print('success! ID: $productPrice');
-
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => ProductDetailPage(
-                productId: productId,
-                productTitle: productTitle,
-                productPrice: productPrice,
-              ),
-            ),
-          );
-        } else {
-          print('Invalid product ID: $productId');
-        }
-      },
-      child: Container(
-        width: 120,
-        margin: const EdgeInsets.symmetric(horizontal: 8.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Image.asset(
-              _getImageForProductId(product['product_id']),
-              fit: BoxFit.cover,
-              height: 100,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              product['title'] ?? '',
-              style: const TextStyle(fontSize: 14),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  String _getImageForProductId(int productId) {
-    switch (productId) {
-      case 8:
-        return 'assets/images/veg2.png';
-      case 1:
-        return 'assets/images/apple.jpg';
-      case 10:
-        return 'assets/images/tofu.png';
-      default:
-        return 'assets/images/veg2.png'; // 기본 이미지
-    }
-  }
-
-  List<Map<String, String>> _dummyProducts() {
-    return [
-      {
-        'image': 'assets/images/fruit.png',
-        'description': '신선한 과일',
-      },
-      {
-        'image': 'assets/images/vegetable.png',
-        'description': '신선한 채소',
-      },
-      {
-        'image': 'assets/images/grain.png',
-        'description': '신선한 곡류',
-      },
-    ];
-  }
-}
-
-class CategoryScreen extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Text('카테고리 화면'),
-    );
-  }
-}
-
-class PurchaseHistoryScreen extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Text('구매내역 화면'),
     );
   }
 }

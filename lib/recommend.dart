@@ -1,40 +1,9 @@
 import 'package:flutter/material.dart';
 
 class ProductRecommend extends StatelessWidget {
-  final List<Product> products = [
-    Product(
-      name: '상품 1',
-      price: '9000',
-    ),
-    Product(
-      name: '상품 2',
-      price: '9000',
-    ),
-    Product(
-      name: '상품 3',
-      price: '9000',
-    ),
-    Product(
-      name: '상품 4',
-      price: '9000',
-    ),
-    Product(
-      name: '상품 5',
-      price: '9000',
-    ),
-    Product(
-      name: '상품 6',
-      price: '9000',
-    ),
-    Product(
-      name: '상품 7',
-      price: '9000',
-    ),
-    Product(
-      name: '상품 8',
-      price: '9000',
-    ),
-  ];
+  final List<Map<String, dynamic>> products;
+
+  ProductRecommend({required this.products});
 
   @override
   Widget build(BuildContext context) {
@@ -71,15 +40,8 @@ class ProductRecommend extends StatelessWidget {
   }
 }
 
-class Product {
-  final String name;
-  final String price;
-
-  Product({required this.name, required this.price});
-}
-
 class ProductItem extends StatelessWidget {
-  final Product product;
+  final Map<String, dynamic> product;
 
   ProductItem({required this.product});
 
@@ -90,17 +52,17 @@ class ProductItem extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          Image.asset('assets/images/veg2.png'),
+          Image.asset('assets/images/veg2.png'),  // 이미지 경로는 필요에 따라 수정
           Padding(
             padding: const EdgeInsets.all(8.0),
             child: Column(
               children: [
                 Text(
-                  product.name,
+                  product['title'] ?? 'No Title',
                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                 ),
                 Text(
-                  product.price,
+                  '${product['price']}원',
                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                 ),
               ],
@@ -111,3 +73,4 @@ class ProductItem extends StatelessWidget {
     );
   }
 }
+
