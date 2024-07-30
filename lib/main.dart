@@ -62,7 +62,7 @@ class _MainPageState extends State<MainPage> {
       HomeScreen(customBlue: const Color(0xFF76A9E6), dongName: dongName),
       MarketScreen(customBlue: const Color(0xFF76A9E6)),
       CategoryScreen(),
-      MyPurchaseScren(),
+      MyPurchaseScreen(),
       MyInfoScreen(), // Update to use the new MyInfoScreen
     ];
   }
