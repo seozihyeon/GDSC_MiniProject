@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'main.dart';
@@ -13,6 +14,28 @@ class _LoginPageState extends State<LoginPage> {
   var _UsernameController = TextEditingController();
   var _PasswordController = TextEditingController();
   dynamic userInfo = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadLastLoginInfo();
+  }
+
+  Future<void> _loadLastLoginInfo() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    String? lastUsername = prefs.getString('lastUsername');
+    String? lastPassword = prefs.getString('lastPassword');
+
+    setState(() {
+      if (lastUsername != null) {
+        _UsernameController.text = lastUsername;
+      }
+
+      if (lastPassword != null) {
+        _PasswordController.text = lastPassword;
+      }
+    });
+  }
 
   Future<void> login() async {
     try {
@@ -31,6 +54,15 @@ class _LoginPageState extends State<LoginPage> {
         setState(() {
           userInfo = jsonDecode(response.body);
         });
+        SharedPreferences prefs = await SharedPreferences.getInstance();
+        prefs.setBool('isLoggedIn', true);
+        prefs.setString('userInfo', jsonEncode(userInfo));
+        // 쿠키를 저장
+        prefs.setString('cookie', response.headers['set-cookie']!);
+        // 마지막 로그인 정보 저장
+        prefs.setString('lastUsername', _UsernameController.text);
+        prefs.setString('lastPassword', _PasswordController.text);
+
         Navigator.pushAndRemoveUntil(
           context,
           MaterialPageRoute(builder: (context) => MainPage()),
