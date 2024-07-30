@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:miniproject/mypuchase.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:miniproject/mycart.dart';
 import 'market.dart';
@@ -7,7 +8,7 @@ import 'login.dart';
 import 'recommend.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-import 'my_info.dart'; // Import the new MyInfoScreen
+import 'my_info.dart';
 
 Future<List<Map<String, dynamic>>> fetchRecommendedProducts() async {
   final response = await http.get(Uri.parse('http://10.0.2.2:5000/all-products')); // 서버 IP 주소 및 엔드포인트를 정확히 기입
@@ -61,7 +62,7 @@ class _MainPageState extends State<MainPage> {
       HomeScreen(customBlue: const Color(0xFF76A9E6), dongName: dongName),
       MarketScreen(customBlue: const Color(0xFF76A9E6)),
       CategoryScreen(),
-      PurchaseHistoryScreen(),
+      MyPurchaseScreen(),
       MyInfoScreen(), // Update to use the new MyInfoScreen
     ];
   }
@@ -85,7 +86,7 @@ class _MainPageState extends State<MainPage> {
       });
     } else {
       setState(() {
-        dongName = null; // 초기화
+        dongName = null;
       });
     }
   }
@@ -262,14 +263,14 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildProductCard2(Map<String, String> product, BuildContext context) {
     return GestureDetector(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => ProductDetailPage(),
-          ),
-        );
-      },
+      // onTap: () {
+      //   Navigator.push(
+      //     context,
+      //     MaterialPageRoute(
+      //       builder: (context) => ProductDetailPage(),
+      //     ),
+      //   );
+      // },
       child: Container(
         width: 120,
         margin: const EdgeInsets.symmetric(horizontal: 8.0),
@@ -366,9 +367,10 @@ class _HomeScreenState extends State<HomeScreen> {
         itemBuilder: (context, index) {
           return Column(
             children: [
-              CircleAvatar(
-                radius: 30,
-                backgroundImage: AssetImage(categories[index]['image']!),
+              Image.asset(
+                categories[index]['image']!,
+                width: 50,
+                height: 50,
               ),
               const SizedBox(height: 8),
               Text(
@@ -430,10 +432,27 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildProductCard(Map<String, dynamic> product, BuildContext context) {
     return GestureDetector(
       onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => ProductDetailPage()),
-        );
+        final productId = product['product_id'];
+        final productTitle = product['title'] ?? 'No Title';
+        final productPrice = product['price']?.toDouble() ?? 0.0; // 가격은 double로 변환
+        if (productId != null && productId is int) {
+          print('success! ID: $productId');
+          print('success! ID: $productTitle');
+          print('success! ID: $productPrice');
+
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => ProductDetailPage(
+                productId: productId,
+                productTitle: productTitle,
+                productPrice: productPrice,
+              ),
+            ),
+          );
+        } else {
+          print('Invalid product ID: $productId');
+        }
       },
       child: Container(
         width: 120,
@@ -442,7 +461,7 @@ class _HomeScreenState extends State<HomeScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Image.asset(
-              product['image_url'] ?? 'assets/images/veg2.png', // 기본 이미지 사용
+              _getImageForProductId(product['product_id']),
               fit: BoxFit.cover,
               height: 100,
             ),
@@ -457,6 +476,19 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
       ),
     );
+  }
+
+  String _getImageForProductId(int productId) {
+    switch (productId) {
+      case 8:
+        return 'assets/images/veg2.png';
+      case 1:
+        return 'assets/images/apple.jpg';
+      case 10:
+        return 'assets/images/tofu.png';
+      default:
+        return 'assets/images/veg2.png'; // 기본 이미지
+    }
   }
 
   List<Map<String, String>> _dummyProducts() {

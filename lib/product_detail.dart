@@ -1,31 +1,103 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-
-void main() {
-  runApp(MyApp());
-}
-
-class MyApp extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      home: ProductDetailPage(),
-    );
-  }
-}
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class ProductDetailPage extends StatefulWidget {
+  final int productId;
+  final String productTitle;
+  final double productPrice;
+
+  ProductDetailPage({
+    required this.productId,
+    required this.productTitle,
+    required this.productPrice,
+  });
+
   @override
   _ProductDetailPageState createState() => _ProductDetailPageState();
 }
 
 class _ProductDetailPageState extends State<ProductDetailPage> {
+  late Future<Map<String, dynamic>> productDetails;
+  bool isLoggedIn = false;
   bool _isFavorited = false;
+  String? cookie;
 
-  void _toggleFavorite() {
+  @override
+  void initState() {
+    super.initState();
+    checkLoginStatus();
+    _getCookie();
+    _checkIfFavorited();
+  }
+
+  void _getCookie() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
     setState(() {
-      _isFavorited = !_isFavorited;
+      cookie = prefs.getString('cookie');
     });
+  }
+
+  Future<void> checkLoginStatus() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    setState(() {
+      isLoggedIn = prefs.getBool('isLoggedIn') ?? false;
+      cookie = prefs.getString('cookie');
+    });
+  }
+
+  Future<void> _purchaseProduct(int quantity) async {
+    if (!isLoggedIn) {
+      _showDialog('로그인 후 이용해 주세요.');
+      return;
+    }
+
+    try {
+      final response = await http.post(
+        Uri.parse('http://10.0.2.2:5000/purchase'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Cookie': cookie ?? '',
+        },
+        body: jsonEncode({
+          'product_id': widget.productId,
+          'quantity': quantity,
+        }),
+      );
+
+      print('상품 ${widget.productId} 구매 성공');
+
+      if (response.statusCode == 201) {
+        _showDialog('구매가 성공적으로 완료되었습니다.');
+      } else {
+        _showDialog('구매를 실패하였습니다. 다시 시도해 주세요.');
+      }
+    } catch (e) {
+      print('구매실패 에러: $e');
+      _showDialog('예기치 못한 오류가 발생하였습니다.');
+    }
+  }
+
+  void _showDialog(String message) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('알림'),
+          content: Text(message),
+          actions: <Widget>[
+            TextButton(
+              child: Text('확인'),
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+            ),
+          ],
+        );
+      },
+    );
   }
 
   void _showBottomSheet(BuildContext context, String name, String status) {
@@ -41,13 +113,59 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
             {'name': '이유정', 'status': '3/7'},
             {'name': '하지윤', 'status': '11/30'},
           ],
+          onPurchase: (quantity) async {
+            await _purchaseProduct(quantity); // 수정된 부분
+          },
         ),
       ),
     );
   }
 
+
+  void _toggleFavorite() async {
+    final url = 'http://10.0.2.2:5000/api/product-like';
+    final method = _isFavorited ? 'DELETE' : 'POST';
+    final headers = {
+      'Content-Type': 'application/json',
+      'Cookie': cookie ?? '',
+    };
+    final body = jsonEncode({
+      'gonggu_product_id': widget.productId,
+      'name': widget.productTitle,
+      'price': widget.productPrice,
+    });
+
+    final response = await (method == 'POST'
+        ? http.post(Uri.parse(url), headers: headers, body: body)
+        : http.delete(Uri.parse(url), headers: headers, body: body));
+
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      setState(() {
+        _isFavorited = !_isFavorited;
+      });
+    }
+  }
+
+  void _checkIfFavorited() async {
+    final response = await http.get(
+      Uri.parse('http://10.0.2.2:5000/api/favorite-products'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Cookie': cookie ?? '',
+      },
+    );
+    if (response.statusCode == 200) {
+      final List<dynamic> favoriteProducts = jsonDecode(response.body);
+      setState(() {
+        _isFavorited = favoriteProducts.any((product) => product['id'] == widget.productId);
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final priceFormat = NumberFormat('#,###');
+
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
@@ -70,14 +188,14 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Image.asset('assets/images/veg2.png'),
+            Image.asset(_getImageForProductId(widget.productId)),
             Padding(
               padding: const EdgeInsets.all(16.0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    '[곰팡몰]신선하고 아삭한 깨끗한 콩나물 1kg 2kg',
+                    widget.productTitle,
                     style: TextStyle(
                       fontWeight: FontWeight.bold,
                       fontSize: 16,
@@ -85,7 +203,7 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                   ),
                   SizedBox(height: 8),
                   Text(
-                    '5,400원~',
+                    '${priceFormat.format(widget.productPrice)}원~',
                     style: TextStyle(
                       fontWeight: FontWeight.bold,
                       fontSize: 16,
@@ -155,6 +273,19 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
         ),
       ),
     );
+  }
+
+  String _getImageForProductId(int productId) {
+    switch (productId) {
+      case 8:
+        return 'assets/images/veg2.png';
+      case 1:
+        return 'assets/images/apple.jpg';
+      case 10:
+        return 'assets/images/tofu.png';
+      default:
+        return 'assets/images/veg2.png'; // 기본 이미지
+    }
   }
 
   Widget _buildGroupPurchaseItem(String name, String status) {
@@ -263,11 +394,13 @@ class BottomSheetContent extends StatefulWidget {
   final String name;
   final String status;
   final List<Map<String, String>> teams;
+  final Future<void> Function(int quantity) onPurchase;
 
   BottomSheetContent({
     required this.name,
     required this.status,
     required this.teams,
+    required this.onPurchase,
   });
 
   @override
@@ -304,49 +437,49 @@ class _BottomSheetContentState extends State<BottomSheetContent> {
         ),
         SizedBox(height: 15),
         Container(
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(8.0),
-            border: Border.all(
-              color: Colors.grey,
-              width: 1,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(8.0),
+              border: Border.all(
+                color: Colors.grey,
+                width: 1,
+              ),
             ),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              SizedBox(height: 5,),
-              Text('   참여선택', style: TextStyle(fontSize: 16), textAlign: TextAlign.start,),
-              Divider(),
-              Padding(
-                padding: EdgeInsets.only(left: 10, right: 20),
-                child: Row(
-                  children: [
-                    Text('팀장명 ',),
-                    DropdownButton<Map<String, String>>(
-                      value: widget.teams.firstWhere(
-                            (team) => team['name'] == _selectedTeamName,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SizedBox(height: 5,),
+                Text('   참여선택', style: TextStyle(fontSize: 16), textAlign: TextAlign.start,),
+                Divider(),
+                Padding(
+                  padding: EdgeInsets.only(left: 10, right: 20),
+                  child: Row(
+                    children: [
+                      Text('팀장명 ',),
+                      DropdownButton<Map<String, String>>(
+                        value: widget.teams.firstWhere(
+                              (team) => team['name'] == _selectedTeamName,
+                        ),
+                        items: widget.teams.map((team) {
+                          return DropdownMenuItem<Map<String, String>>(
+                            value: team,
+                            child: Text('  ${team['name']}', style: TextStyle(fontSize: 13),),
+                          );
+                        }).toList(),
+                        onChanged: (value) {
+                          setState(() {
+                            _selectedTeamName = value!['name']!;
+                            _selectedTeamStatus = value['status']!;
+                          });
+                        },
                       ),
-                      items: widget.teams.map((team) {
-                        return DropdownMenuItem<Map<String, String>>(
-                          value: team,
-                          child: Text('  ${team['name']}', style: TextStyle(fontSize: 13),),
-                        );
-                      }).toList(),
-                      onChanged: (value) {
-                        setState(() {
-                          _selectedTeamName = value!['name']!;
-                          _selectedTeamStatus = value['status']!;
-                        });
-                      },
-                    ),
-                    Spacer(),
-                    Text('진행 인원  ($_selectedTeamStatus)'),
-                  ],
-                ),
-              )
-            ],
-          )
+                      Spacer(),
+                      Text('진행 인원  ($_selectedTeamStatus)'),
+                    ],
+                  ),
+                )
+              ],
+            )
         ),
         SizedBox(height: 10),
         Row(
@@ -382,8 +515,6 @@ class _BottomSheetContentState extends State<BottomSheetContent> {
                 ],
               ),
             ),
-
-
           ],
         ),
         SizedBox(height: 20),
@@ -393,6 +524,9 @@ class _BottomSheetContentState extends State<BottomSheetContent> {
               child: ElevatedButton(
                 onPressed: () {
                   // 장바구니 담기 버튼 클릭 시 처리
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('장바구니에 담겼습니다.')),
+                  );
                 },
                 child: Text('장바구니 담기'),
                 style: ElevatedButton.styleFrom(
@@ -405,8 +539,8 @@ class _BottomSheetContentState extends State<BottomSheetContent> {
             SizedBox(width: 15),
             Expanded(
               child: ElevatedButton(
-                onPressed: () {
-                  // 바로 구매 버튼 클릭 시 처리
+                onPressed: () async {
+                  await widget.onPurchase(_selectedQuantity);
                 },
                 child: Text('바로 구매'),
                 style: ElevatedButton.styleFrom(
@@ -479,7 +613,6 @@ class ReviewItem extends StatelessWidget {
     );
   }
 }
-
 
 class QuestionSection extends StatelessWidget {
   @override
