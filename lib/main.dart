@@ -50,7 +50,7 @@ class _MainPageState extends State<MainPage> {
       HomeScreen(customBlue: const Color(0xFF76A9E6), dongName: dongName, userId: userId),  // 사용자 ID 전달
       MarketScreen(customBlue: const Color(0xFF76A9E6)),
       Center(child: Text('카테고리 화면')), // 카테고리 화면 텍스트
-      MyPurchaseScren(),
+      MyPurchaseScreen(),
       MyInfoScreen(), // Update to use the new MyInfoScreen
     ];
   }
